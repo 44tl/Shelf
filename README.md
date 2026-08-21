@@ -60,15 +60,30 @@ overwritten — collisions become `file (2).ext` instead.
 
 ## Getting it
 
+Homebrew (macOS & Linux):
+
+```sh
+brew install 44tl/tap/shelf
+```
+
+Scoop (Windows):
+
+```sh
+scoop bucket add 44tl https://github.com/44tl/scoop-bucket
+scoop install shelf
+```
+
+Go:
+
 ```sh
 go install github.com/44tl/Shelf@latest
 ```
 
-Living dangerously on the bleeding edge? `go install github.com/44tl/Shelf@main`
-works even before the first release is tagged.
-
-Prebuilt binaries for Linux, macOS and Windows are on the
-[Releases](https://github.com/44tl/Shelf/releases) page.
+Arch, Debian and Fedora users get `shelf` packages (.pkg.tar.zst, .deb,
+.rpm) on every release — grab them from the
+[Releases](https://github.com/44tl/Shelf/releases) page, where prebuilt
+binaries for Linux, macOS and Windows (amd64 + arm64) also live. An AUR
+`shelf-bin` package is on the roadmap once the tap pipeline settles.
 
 ## Living with it
 
@@ -151,7 +166,7 @@ Works the same on Linux, macOS and Windows.
 - [x] cross-device moves (copy+delete fallback when rename can't)
 - [x] true junk: `delete` rules — trashed, journaled, undoable, auto-purged
 - [x] shell completions for bash, zsh, fish and PowerShell (`--completion`)
-- [ ] Homebrew / Scoop / AUR packages
+- [x] Homebrew tap + Scoop bucket (AUR `shelf-bin` ready to flip on)
 
 Built by hand, for humans. If shelf saved you an hour of filing, consider
 giving it a star — that's how other tired people find it.

@@ -51,6 +51,16 @@ brews:
     description: Give every download a home — preview-first folder organizer with real undo.
     license: MIT
 
+scoops:
+  - repository:
+      owner: 44tl
+      name: scoop-bucket
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: bucket
+    homepage: https://github.com/44tl/Shelf
+    description: Give every download a home — preview-first folder organizer with real undo.
+    license: MIT
+
 checksum:
   name_template: checksums.txt
 
@@ -61,3 +71,4 @@ changelog:
       - "^docs:"
       - "^chore"
       - "^test"
+
