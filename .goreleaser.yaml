@@ -45,11 +45,11 @@ brews:
   - repository:
       owner: 44tl
       name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: https://github.com/44tl/Shelf
     description: Give every download a home — preview-first folder organizer with real undo.
     license: MIT
-    token: "{{ .Env.TAP_GITHUB_TOKEN }}"
 
 checksum:
   name_template: checksums.txt
