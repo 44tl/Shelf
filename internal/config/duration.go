@@ -44,6 +44,9 @@ func ParseDuration(s string) (time.Duration, error) {
 		default:
 			return 0, fmt.Errorf("shelf: unexpected character %q in duration %q", string(r), s)
 		}
+		if total < 0 {
+			return 0, fmt.Errorf("shelf: duration %q is out of range", s)
+		}
 	}
 	if numStart >= 0 {
 		return 0, fmt.Errorf("shelf: bad duration %q: missing time unit", s)

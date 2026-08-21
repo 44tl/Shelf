@@ -29,7 +29,7 @@ Flags:
 
 Preview is the default: without --apply, nothing is ever touched.
 
-Rules live in ~/.config/shelf/shelf.yaml — plain globs, plain words:
+Rules live in a plain YAML file; run "shelf --init" to write one you can edit:
 
   - name: Invoices
     match: ["*invoice*.pdf"]
@@ -160,10 +160,13 @@ func resolveRoot(positional []string, home string) (string, error) {
 	if len(positional) > 1 {
 		return "", fmt.Errorf("shelf: only one path at a time")
 	}
-	p := ""
+	var p string
 	if len(positional) == 1 {
 		p = positional[0]
 	} else {
+		if home == "" {
+			return "", fmt.Errorf("shelf: cannot find your home directory — tell shelf which folder to tidy")
+		}
 		p = filepath.Join(home, "Downloads")
 	}
 	expanded, err := config.ExpandHome(p)
@@ -239,29 +242,28 @@ func previewOrApply(root string, cfg *config.Config, source string, jnl *shelf.J
 	fmt.Printf("%s shelf %s·%s %s%s%s  %s%s%s\n\n",
 		ui.Bold, ui.Reset, ui.Reset, ui.Dim, ui.Shorten(root), ui.Reset, ui.Dim, source, ui.Reset)
 
-	if len(moves) == 0 {
-		fmt.Printf("  %snothing to shelve — everything is already home.%s\n", ui.Green, ui.Reset)
+	moved, movedBytes := shelf.Apply(os.Stdout, moves, jnl, !apply)
+
+	if !apply {
+		if moved == 0 {
+			fmt.Printf("  %snothing to shelve — everything is already home.%s\n", ui.Green, ui.Reset)
+			return 0
+		}
+		fmt.Printf("\n  %d file%s · %s — %spreview only, nothing moved%s\n",
+			moved, plural(moved), ui.HumanBytes(movedBytes), ui.Bold, ui.Reset)
+		fmt.Printf("  %shappy? run again with --apply%s\n", ui.Dim, ui.Reset)
 		return 0
 	}
 
-	var bytes int64
-	names := make([]string, 0, len(moves))
-	dests := make([]string, 0, len(moves))
-	for _, m := range moves {
-		bytes += m.Size
-		names = append(names, filepath.Base(m.From))
-		dests = append(dests, ui.Shorten(filepath.Dir(m.To)))
+	if moved == 0 {
+		fmt.Fprintf(os.Stderr, "%sshelf: could not move anything.%s\n", ui.Red, ui.Reset)
+		return 1
 	}
-
-	shelf.Apply(os.Stdout, moves, jnl, !apply)
-
-	fmt.Printf("\n  %d file%s · %s", len(moves), plural(len(moves)), ui.HumanBytes(bytes))
-	if !apply {
-		fmt.Printf(" — %spreview only, nothing moved%s\n", ui.Bold, ui.Reset)
-		fmt.Printf("  %shappy? run again with --apply%s\n", ui.Dim, ui.Reset)
-	} else {
-		fmt.Printf(" — %sfiled.%s\n", ui.Green, ui.Reset)
-		fmt.Printf("  %ssecond thoughts? shelf --undo%s\n", ui.Dim, ui.Reset)
+	fmt.Printf("\n  %sfiled %d file%s · %s.%s\n", ui.Green, moved, plural(moved), ui.HumanBytes(movedBytes), ui.Reset)
+	fmt.Printf("  %ssecond thoughts? shelf --undo%s\n", ui.Dim, ui.Reset)
+	if moved < len(moves) {
+		fmt.Fprintf(os.Stderr, "%ssome files could not be moved — see the ✗ lines above.%s\n", ui.Yellow, ui.Reset)
+		return 1
 	}
 	return 0
 }

@@ -88,3 +88,29 @@ func TestExpandHome(t *testing.T) {
 		t.Errorf("plain path changed: %s", plain)
 	}
 }
+
+func TestParseInResolvesRelativeDestAgainstBaseDir(t *testing.T) {
+	base := t.TempDir()
+	text := `
+rules:
+  - name: Rel
+    match: ["*.png"]
+    to: sorted-files
+`
+	cfg, err := ParseIn(base, []byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(base, "sorted-files")
+	if cfg.Rules[0].Dest != want {
+		t.Errorf("relative dest = %q, want %q", cfg.Rules[0].Dest, want)
+	}
+
+	cwdCfg, err := Parse([]byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filepath.IsAbs(cwdCfg.Rules[0].Dest) {
+		t.Errorf("Parse should still produce an absolute dest, got %q", cwdCfg.Rules[0].Dest)
+	}
+}

@@ -65,6 +65,8 @@ func RuneWidth(s string) int { return len([]rune(s)) }
 func HumanBytes(n int64) string {
 	const kb, mb, gb, tb = 1 << 10, 1 << 20, 1 << 30, 1 << 40
 	switch {
+	case n < 0:
+		return "0 B"
 	case n >= tb:
 		return fmt.Sprintf("%.1f TB", float64(n)/tb)
 	case n >= gb:
@@ -80,6 +82,9 @@ func HumanBytes(n int64) string {
 
 func Age(d time.Duration) string {
 	h := int(d.Hours())
+	if h < 0 {
+		h = 0
+	}
 	if h < 48 {
 		return fmt.Sprintf("%dh", h)
 	}
@@ -89,14 +94,20 @@ func Age(d time.Duration) string {
 func Widths(names, dests []string) (nameW, destW int) {
 	nameW, destW = 16, 28
 	for _, s := range names {
-		if w := RuneWidth(s); w > nameW && w <= 44 {
+		if w := RuneWidth(s); w > nameW {
 			nameW = w
 		}
 	}
 	for _, s := range dests {
-		if w := RuneWidth(s); w > destW && w <= 40 {
+		if w := RuneWidth(s); w > destW {
 			destW = w
 		}
+	}
+	if nameW > 44 {
+		nameW = 44
+	}
+	if destW > 40 {
+		destW = 40
 	}
 	return nameW, destW
 }

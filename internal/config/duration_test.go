@@ -25,6 +25,8 @@ func TestParseDuration(t *testing.T) {
 		{"7", 0, true},
 		{"soon", 0, true},
 		{"7x", 0, true},
+		{"99999999999999w", 0, true},
+		{"-7d", 0, true},
 	}
 	for _, c := range cases {
 		got, err := ParseDuration(c.in)

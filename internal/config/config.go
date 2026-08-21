@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -71,14 +72,20 @@ func Default() (*Config, error) { return Parse([]byte(DefaultText)) }
 func StarterText() string { return DefaultText }
 
 func Path() string {
-	base, err := os.UserConfigDir()
-	if err != nil {
-		if home, herr := os.UserHomeDir(); herr == nil {
-			return filepath.Join(home, ".config", "shelf", "shelf.yaml")
+	if runtime.GOOS == "windows" {
+		if base, err := os.UserConfigDir(); err == nil {
+			return filepath.Join(base, "shelf", "shelf.yaml")
 		}
 		return "shelf.yaml"
 	}
-	return filepath.Join(base, "shelf", "shelf.yaml")
+	if x := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); x != "" {
+		return filepath.Join(x, "shelf", "shelf.yaml")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "shelf.yaml"
+	}
+	return filepath.Join(home, ".config", "shelf", "shelf.yaml")
 }
 
 func Load(path string) (*Config, error) {
@@ -86,17 +93,23 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("shelf: reading %s: %w", path, err)
 	}
-	cfg, err := Parse(b)
+	base := ""
+	if abs, aerr := filepath.Abs(path); aerr == nil {
+		base = filepath.Dir(abs)
+	}
+	cfg, err := ParseIn(base, b)
 	if err != nil {
 		return nil, fmt.Errorf("shelf: in %s: %w", path, err)
 	}
 	return cfg, nil
 }
 
-func Parse(b []byte) (*Config, error) {
+func Parse(b []byte) (*Config, error) { return ParseIn("", b) }
+
+func ParseIn(baseDir string, b []byte) (*Config, error) {
 	var c Config
 	if err := yaml.Unmarshal(b, &c); err != nil {
-		return nil, fmt.Errorf("%w", err)
+		return nil, err
 	}
 	for i := range c.Rules {
 		r := &c.Rules[i]
@@ -117,6 +130,9 @@ func Parse(b []byte) (*Config, error) {
 		dest, err := ExpandHome(r.To)
 		if err != nil {
 			return nil, fmt.Errorf("rule %q: %w", r.Name, err)
+		}
+		if !filepath.IsAbs(dest) && baseDir != "" {
+			dest = filepath.Join(baseDir, dest)
 		}
 		abs, err := filepath.Abs(dest)
 		if err != nil {

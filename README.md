@@ -54,8 +54,9 @@ That's the whole format. Globs, an age, a destination.
 
 **It respects the living.** Dotfiles, directories, symlinks and half-downloaded
 files (`.crdownload`, `.part`) are never touched. Files younger than a rule's
-`older_than` are left alone to settle. Collisions become `file (2).ext` —
-shelf would rather invent a name than overwrite yours.
+`older_than` are left alone to settle. Destinations are re-checked at the
+moment of each move, so nothing that shows up in the meantime can ever be
+overwritten — collisions become `file (2).ext` instead.
 
 ## Getting it
 

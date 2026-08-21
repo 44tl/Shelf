@@ -1,7 +1,7 @@
 .PHONY: build test vet install clean
 
 build:
-	go build -o bin/ .
+	go build -o bin/shelf .
 
 test:
 	go test ./...

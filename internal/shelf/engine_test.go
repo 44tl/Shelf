@@ -178,3 +178,109 @@ func TestUniqueDestAlsoChecksPlannedSet(t *testing.T) {
 		t.Errorf("unexpected numbering: %s %s", b, c)
 	}
 }
+
+func TestApplyNeverOverwritesFilesThatAppearAfterPlanning(t *testing.T) {
+	root := t.TempDir()
+	dest := t.TempDir()
+	cfg := smallCfg(dest)
+
+	src := touch(t, root, "a.png", 24*time.Hour, 5)
+
+	moves, err := Plan(root, cfg, 0, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.MkdirAll(filepath.Join(dest, "pics"), 0o755)
+	victim := filepath.Join(dest, "pics", "a.png")
+	os.WriteFile(victim, []byte("precious"), 0o644)
+
+	jnl, err := OpenJournal(filepath.Join(t.TempDir(), "journal.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	jnl.StartRun()
+	moved, _ := Apply(&out, moves, jnl, false)
+
+	if moved != 1 {
+		t.Fatalf("moved = %d, want 1 (out: %s)", moved, out.String())
+	}
+	got, _ := os.ReadFile(victim)
+	if string(got) != "precious" {
+		t.Fatal("existing destination file was overwritten")
+	}
+	if _, err := os.Lstat(filepath.Join(dest, "pics", "a (2).png")); err != nil {
+		t.Fatalf("conflict-safe name was not used: %v", err)
+	}
+	if _, err := os.Lstat(src); !os.IsNotExist(err) {
+		t.Fatal("source was not moved")
+	}
+}
+
+func TestApplySkipsSourcesSwappedForSymlinks(t *testing.T) {
+	root := t.TempDir()
+	dest := t.TempDir()
+	cfg := smallCfg(dest)
+
+	src := touch(t, root, "a.png", 24*time.Hour, 5)
+
+	moves, err := Plan(root, cfg, 0, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	realTarget := filepath.Join(root, "real-target.txt")
+	os.WriteFile(realTarget, []byte("x"), 0o644)
+	os.Remove(src)
+	if err := os.Symlink(realTarget, src); err != nil {
+		t.Skip("symlinks unavailable on this platform:", err)
+	}
+
+	jnl, err := OpenJournal(filepath.Join(t.TempDir(), "journal.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	moved, _ := Apply(&out, moves, jnl, false)
+
+	if moved != 0 {
+		t.Fatalf("symlink source was moved (%d files), want 0", moved)
+	}
+	fi, err := os.Lstat(src)
+	if err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("source symlink did not survive untouched")
+	}
+}
+
+func TestApplyUndoRoundTripWithConflicts(t *testing.T) {
+	root := t.TempDir()
+	dest := t.TempDir()
+	cfg := smallCfg(dest)
+
+	src := touch(t, root, "a.png", 24*time.Hour, 7)
+
+	moves, _ := Plan(root, cfg, 0, time.Now())
+	os.MkdirAll(filepath.Join(dest, "pics"), 0o755)
+	os.WriteFile(filepath.Join(dest, "pics", "a.png"), []byte("keep"), 0o644)
+
+	jnl, _ := OpenJournal(filepath.Join(t.TempDir(), "journal.jsonl"))
+	var out bytes.Buffer
+	jnl.StartRun()
+	Apply(&out, moves, jnl, false)
+
+	n, err := jnl.Undo(&out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("undo restored %d files, want 1", n)
+	}
+	if _, err := os.Lstat(src); err != nil {
+		t.Fatalf("file not restored home: %v", err)
+	}
+	kept, _ := os.ReadFile(filepath.Join(dest, "pics", "a.png"))
+	if string(kept) != "keep" {
+		t.Fatal("undo damaged the pre-existing file")
+	}
+}

@@ -1,6 +1,7 @@
 package shelf
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,20 +12,47 @@ import (
 
 func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool) (moved int, bytes int64) {
 	nameW, destW := layoutWidths(moves)
+	taken := map[string]bool{}
+
 	for _, m := range moves {
-		if !dry {
-			if err := os.MkdirAll(filepath.Dir(m.To), 0o755); err != nil {
-				fmt.Fprintf(out, "  %s✗ %s (%v)%s\n", ui.Red, filepath.Base(m.From), err, ui.Reset)
-				continue
-			}
-			if err := os.Rename(m.From, m.To); err != nil {
-				fmt.Fprintf(out, "  %s✗ %s (%v)%s\n", ui.Red, filepath.Base(m.From), err, ui.Reset)
-				continue
-			}
-			jnl.Append(m)
-		} else if _, err := os.Lstat(m.From); err != nil {
+		if !isRegularFile(m.From) {
 			continue
 		}
+
+		if dry {
+			ui.MoveLine(out,
+				filepath.Base(m.From),
+				ui.Shorten(filepath.Dir(m.To)),
+				m.Rule,
+				ui.Age(m.Age),
+				ui.HumanBytes(m.Size),
+				nameW, destW,
+			)
+			moved++
+			bytes += m.Size
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(m.To), 0o755); err != nil {
+			failLine(out, filepath.Base(m.From), err)
+			continue
+		}
+
+		m.To = reserveTarget(m.To, taken)
+
+		if err := moveTo(m.From, m.To); err != nil {
+			if !errors.Is(err, os.ErrExist) {
+				failLine(out, filepath.Base(m.From), err)
+				continue
+			}
+			m.To = uniqueDest(filepath.Dir(m.To), filepath.Base(m.To), taken)
+			if err := moveTo(m.From, m.To); err != nil {
+				failLine(out, filepath.Base(m.From), err)
+				continue
+			}
+		}
+
+		jnl.Append(m)
 		ui.MoveLine(out,
 			filepath.Base(m.From),
 			ui.Shorten(filepath.Dir(m.To)),
@@ -37,6 +65,41 @@ func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool) (moved int, byte
 		bytes += m.Size
 	}
 	return moved, bytes
+}
+
+func failLine(out io.Writer, name string, err error) {
+	fmt.Fprintf(out, "  %s✗ %s (%v)%s\n", ui.Red, name, err, ui.Reset)
+}
+
+func isRegularFile(p string) bool {
+	fi, err := os.Lstat(p)
+	return err == nil && fi.Mode().IsRegular()
+}
+
+func reserveTarget(target string, taken map[string]bool) string {
+	for i := 0; i < 8; i++ {
+		if _, err := os.Lstat(target); err != nil {
+			return target
+		}
+		target = uniqueDest(filepath.Dir(target), filepath.Base(target), taken)
+	}
+	return target
+}
+
+func moveTo(from, to string) error {
+	linkErr := os.Link(from, to)
+	switch {
+	case linkErr == nil:
+		if err := os.Remove(from); err != nil {
+			os.Remove(to)
+			return err
+		}
+		return nil
+	case errors.Is(linkErr, os.ErrExist):
+		return linkErr
+	default:
+		return os.Rename(from, to)
+	}
 }
 
 func layoutWidths(moves []Move) (nameW, destW int) {

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -27,6 +28,11 @@ type entry struct {
 }
 
 func DefaultJournalPath() string {
+	if runtime.GOOS == "windows" {
+		if base, err := os.UserConfigDir(); err == nil {
+			return filepath.Join(base, "shelf", "journal.jsonl")
+		}
+	}
 	if s := os.Getenv("XDG_STATE_HOME"); s != "" {
 		return filepath.Join(s, "shelf", "journal.jsonl")
 	}
@@ -38,7 +44,7 @@ func DefaultJournalPath() string {
 }
 
 func OpenJournal(path string) (*Journal, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("shelf: journal: %w", err)
 	}
 	return &Journal{path: path}, nil
@@ -52,7 +58,7 @@ func (j *Journal) Append(m Move) error {
 	if j.run == "" {
 		j.StartRun()
 	}
-	f, err := os.OpenFile(j.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(j.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -142,7 +148,7 @@ func (j *Journal) lastRun() ([]entry, []entry, error) {
 
 func rewrite(path string, entries []entry) error {
 	tmp := path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
