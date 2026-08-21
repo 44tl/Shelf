@@ -161,12 +161,5 @@ This is the part we care about most:
 
 Works the same on Linux, macOS and Windows.
 
-## Where it's going
-
-- [x] cross-device moves (copy+delete fallback when rename can't)
-- [x] true junk: `delete` rules — trashed, journaled, undoable, auto-purged
-- [x] shell completions for bash, zsh, fish and PowerShell (`--completion`)
-- [x] Homebrew tap + Scoop bucket (AUR `shelf-bin` ready to flip on)
-
 Built by hand, for humans. If shelf saved you an hour of filing, consider
 giving it a star — that's how other tired people find it.
