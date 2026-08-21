@@ -89,14 +89,14 @@ func Default() (*Config, error) { return Parse([]byte(DefaultText)) }
 func StarterText() string { return DefaultText }
 
 func Path() string {
+	if x := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); x != "" {
+		return filepath.Join(x, "shelf", "shelf.yaml")
+	}
 	if runtime.GOOS == "windows" {
 		if base, err := os.UserConfigDir(); err == nil {
 			return filepath.Join(base, "shelf", "shelf.yaml")
 		}
 		return "shelf.yaml"
-	}
-	if x := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME")); x != "" {
-		return filepath.Join(x, "shelf", "shelf.yaml")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {

@@ -13,14 +13,14 @@ import (
 )
 
 func StateDir() string {
+	if s := os.Getenv("XDG_STATE_HOME"); strings.TrimSpace(s) != "" {
+		return filepath.Join(s, "shelf")
+	}
 	if runtime.GOOS == "windows" {
 		if base, err := os.UserConfigDir(); err == nil {
 			return filepath.Join(base, "shelf")
 		}
 		return ".shelf-state"
-	}
-	if s := os.Getenv("XDG_STATE_HOME"); s != "" {
-		return filepath.Join(s, "shelf")
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
