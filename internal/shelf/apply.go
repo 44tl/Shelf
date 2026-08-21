@@ -98,8 +98,53 @@ func moveTo(from, to string) error {
 	case errors.Is(linkErr, os.ErrExist):
 		return linkErr
 	default:
-		return os.Rename(from, to)
+		return copyDelete(from, to)
 	}
+}
+
+func copyDelete(from, to string) error {
+	src, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	fi, err := src.Stat()
+	if err != nil {
+		return err
+	}
+	if !fi.Mode().IsRegular() {
+		return errors.New("shelf: source changed mid-move")
+	}
+
+	dst, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, fi.Mode().Perm())
+	if err != nil {
+		return err
+	}
+
+	if _, err = io.Copy(dst, src); err != nil {
+		dst.Close()
+		os.Remove(to)
+		return err
+	}
+	if err = dst.Sync(); err != nil {
+		dst.Close()
+		os.Remove(to)
+		return err
+	}
+	if err = dst.Close(); err != nil {
+		os.Remove(to)
+		return err
+	}
+
+	os.Chmod(to, fi.Mode().Perm())
+	os.Chtimes(to, fi.ModTime(), fi.ModTime())
+
+	if err := os.Remove(from); err != nil {
+		os.Remove(to)
+		return err
+	}
+	return nil
 }
 
 func layoutWidths(moves []Move) (nameW, destW int) {

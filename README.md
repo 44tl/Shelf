@@ -93,13 +93,15 @@ This is the part we care about most:
 - symlinks are followed nowhere, dotfiles invisible to it, directories sacred
 - partial downloads excluded by extension
 - watch mode waits about twenty seconds before judging a fresh file
+- destination on another disk? the move falls back to a verified copy+delete
+  that preserves timestamps and still refuses to overwrite anything
 - and if anything ever feels wrong: `--undo`
 
 Works the same on Linux, macOS and Windows.
 
 ## Where it's going
 
-- [ ] cross-device moves (copy+delete fallback when rename can't)
+- [x] cross-device moves (copy+delete fallback when rename can't)
 - [ ] `--delete-after` for true junk — journaled and undoable like everything else
 - [ ] shell completions
 - [ ] Homebrew / Scoop / AUR packages

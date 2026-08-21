@@ -95,8 +95,10 @@ func (j *Journal) Undo(out io.Writer) (int, error) {
 		}
 		os.MkdirAll(filepath.Dir(e.From), 0o755)
 		if err := os.Rename(e.To, e.From); err != nil {
-			fmt.Fprintf(out, "%s  ✗ %s (%v)%s\n", ui.Red, ui.Trunc(filepath.Base(e.To), 60), err, ui.Reset)
-			continue
+			if cerr := copyDelete(e.To, e.From); cerr != nil {
+				fmt.Fprintf(out, "%s  ✗ %s (%v)%s\n", ui.Red, ui.Trunc(filepath.Base(e.To), 60), cerr, ui.Reset)
+				continue
+			}
 		}
 		restored++
 		fmt.Fprintf(out, "  %s←%s %s\n", ui.Cyan, ui.Reset, ui.Shorten(e.From))
