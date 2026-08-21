@@ -67,11 +67,12 @@ func TestCopyDeleteNeverOverwrites(t *testing.T) {
 }
 
 func TestCopyDeleteRollsBackWhenSourceSticks(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("directory permission semantics differ on windows")
-	}
 	root := t.TempDir()
 	dest := t.TempDir()
+
+	if !dirWriteBitBlocksUnlink(t, root) {
+		t.Skip("this platform does not honor the directory write bit for unlink")
+	}
 
 	src := filepath.Join(root, "stuck.bin")
 	os.WriteFile(src, []byte("data"), 0o600)
@@ -89,6 +90,19 @@ func TestCopyDeleteRollsBackWhenSourceSticks(t *testing.T) {
 	if _, derr := os.Lstat(dst); !os.IsNotExist(derr) {
 		t.Error("completed copy was not rolled back; watch mode would clone it forever")
 	}
+}
+
+func dirWriteBitBlocksUnlink(t *testing.T, dir string) bool {
+	t.Helper()
+	probe := filepath.Join(dir, ".probe-unlink")
+	if err := os.WriteFile(probe, []byte("x"), 0o644); err != nil {
+		return false
+	}
+	os.Chmod(dir, 0o555)
+	defer os.Chmod(dir, 0o755)
+	err := os.Remove(probe)
+	os.Remove(probe)
+	return err != nil
 }
 
 func TestMoveToPrefersHardlinksAndFallsBackCleanly(t *testing.T) {
