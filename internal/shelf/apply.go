@@ -6,14 +6,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/44tl/Shelf/internal/ui"
 )
 
-func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool) (moved int, bytes int64) {
+func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool, keepDeleted time.Duration) (moved int, bytes int64) {
 	nameW, destW := layoutWidths(moves)
 	taken := map[string]bool{}
 	journalWarned := false
+
+	if !dry {
+		PurgeExpiredTrash(out, keepDeleted)
+	}
 
 	for _, m := range moves {
 		if !isRegularFile(m.From) {
@@ -23,7 +28,7 @@ func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool) (moved int, byte
 		if dry {
 			ui.MoveLine(out,
 				filepath.Base(m.From),
-				ui.Shorten(filepath.Dir(m.To)),
+				DestDisplay(m),
 				m.Rule,
 				ui.Age(m.Age),
 				ui.HumanBytes(m.Size),
@@ -60,7 +65,7 @@ func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool) (moved int, byte
 		}
 		ui.MoveLine(out,
 			filepath.Base(m.From),
-			ui.Shorten(filepath.Dir(m.To)),
+			DestDisplay(m),
 			m.Rule,
 			ui.Age(m.Age),
 			ui.HumanBytes(m.Size),
@@ -164,7 +169,7 @@ func layoutWidths(moves []Move) (nameW, destW int) {
 	dests := make([]string, len(moves))
 	for i, m := range moves {
 		names[i] = filepath.Base(m.From)
-		dests[i] = ui.Shorten(filepath.Dir(m.To))
+		dests[i] = DestDisplay(m)
 	}
 	return ui.Widths(names, dests)
 }

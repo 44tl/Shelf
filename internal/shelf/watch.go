@@ -90,7 +90,7 @@ func runOnce(out io.Writer, root string, cfg *config.Config, jnl *Journal) {
 		return
 	}
 	jnl.StartRun()
-	moved, bytes := Apply(out, moves, jnl, false)
+	moved, bytes := Apply(out, moves, jnl, false, cfg.KeepDel)
 	if moved > 0 {
 		ts := time.Now().Format("15:04:05")
 		fmt.Fprintf(out, "%s[%s] filed %d file%s (%s)%s\n",

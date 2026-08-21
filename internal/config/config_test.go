@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDefaultRulesAreValid(t *testing.T) {
@@ -70,6 +71,27 @@ rules:
     older_than: "soon"
     to: ~/somewhere
 `,
+		"delete with to": `
+rules:
+  - name: X
+    match: ["*.png"]
+    older_than: 7d
+    delete: true
+    to: ~/somewhere
+`,
+		"delete without older_than": `
+rules:
+  - name: X
+    match: ["*.png"]
+    delete: true
+`,
+		"keep_deleted below floor": `
+keep_deleted: 20m
+rules:
+  - name: X
+    match: ["*.png"]
+    to: ~/somewhere
+`,
 		"no rules": `
 rules: []
 `,
@@ -118,5 +140,38 @@ rules:
 	}
 	if !filepath.IsAbs(cwdCfg.Rules[0].Dest) {
 		t.Errorf("Parse should still produce an absolute dest, got %q", cwdCfg.Rules[0].Dest)
+	}
+}
+
+func TestDeleteRuleValidation(t *testing.T) {
+	cfg, err := Parse([]byte(`
+rules:
+  - name: Junk
+    match: ["*.tmp"]
+    older_than: 90d
+    delete: true
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Rules[0].Delete || cfg.Rules[0].Dest != "" {
+		t.Errorf("delete rule parsed wrong: %+v", cfg.Rules[0])
+	}
+	if cfg.KeepDel != 30*24*time.Hour {
+		t.Errorf("default retention = %v, want 30d", cfg.KeepDel)
+	}
+
+	cfg2, err := Parse([]byte(`
+keep_deleted: 45d
+rules:
+  - name: X
+    match: ["*.png"]
+    to: ~/somewhere
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg2.KeepDel != 45*24*time.Hour {
+		t.Errorf("keep_deleted = %v, want 45d", cfg2.KeepDel)
 	}
 }

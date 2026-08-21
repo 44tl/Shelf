@@ -17,6 +17,7 @@ type Rule struct {
 	Match     []string `yaml:"match"`
 	OlderThan string   `yaml:"older_than,omitempty"`
 	To        string   `yaml:"to"`
+	Delete    bool     `yaml:"delete,omitempty"`
 
 	Older time.Duration
 	Dest  string
@@ -24,7 +25,10 @@ type Rule struct {
 }
 
 type Config struct {
-	Rules []Rule `yaml:"rules"`
+	Rules       []Rule `yaml:"rules"`
+	KeepDeleted string `yaml:"keep_deleted,omitempty"`
+
+	KeepDel time.Duration
 }
 
 const DefaultText = `# shelf — rules for giving every download a home.
@@ -66,6 +70,18 @@ rules:
     match: ["*.exe", "*.msi", "*.dmg", "*.pkg", "*.deb", "*.rpm", "*.appimage", "*.iso"]
     older_than: 30d
     to: ~/Downloads/Installers
+
+# True junk can be deleted instead of moved — it goes to shelf's private
+# trash first, comes back with "shelf --undo", and is purged for real
+# after keep_expired (30 days by default). "older_than" is required for
+# delete rules, so fresh files are never touched.
+
+#  - name: True junk
+#    match: ["*.tmp", "*.log"]
+#    older_than: 90d
+#    delete: true
+
+# keep_deleted: 30d
 `
 
 func Default() (*Config, error) { return Parse([]byte(DefaultText)) }
@@ -133,24 +149,47 @@ func ParseIn(baseDir string, b []byte) (*Config, error) {
 			return nil, fmt.Errorf("rule %q: %w", r.Name, err)
 		}
 		r.Older = d
-		if strings.TrimSpace(r.To) == "" {
-			return nil, fmt.Errorf("rule %q is missing \"to\"", r.Name)
+
+		if r.Delete {
+			if strings.TrimSpace(r.To) != "" {
+				return nil, fmt.Errorf("rule %q sets both \"to\" and \"delete\" — pick one", r.Name)
+			}
+			if r.Older <= 0 {
+				return nil, fmt.Errorf("rule %q uses \"delete\" and must set \"older_than\" — fresh files are never deleted", r.Name)
+			}
+		} else {
+			if strings.TrimSpace(r.To) == "" {
+				return nil, fmt.Errorf("rule %q is missing \"to\"", r.Name)
+			}
+			dest, err := ExpandHome(r.To)
+			if err != nil {
+				return nil, fmt.Errorf("rule %q: %w", r.Name, err)
+			}
+			if !filepath.IsAbs(dest) && baseDir != "" {
+				dest = filepath.Join(baseDir, dest)
+			}
+			abs, err := filepath.Abs(dest)
+			if err != nil {
+				return nil, fmt.Errorf("rule %q: %w", r.Name, err)
+			}
+			r.Dest = filepath.Clean(abs)
 		}
-		dest, err := ExpandHome(r.To)
-		if err != nil {
-			return nil, fmt.Errorf("rule %q: %w", r.Name, err)
-		}
-		if !filepath.IsAbs(dest) && baseDir != "" {
-			dest = filepath.Join(baseDir, dest)
-		}
-		abs, err := filepath.Abs(dest)
-		if err != nil {
-			return nil, fmt.Errorf("rule %q: %w", r.Name, err)
-		}
-		r.Dest = filepath.Clean(abs)
 	}
 	if len(c.Rules) == 0 {
 		return nil, errors.New(`no rules defined`)
+	}
+	c.KeepDel = 30 * 24 * time.Hour
+	if strings.TrimSpace(c.KeepDeleted) != "" {
+		kd, err := ParseDuration(c.KeepDeleted)
+		if err != nil {
+			return nil, fmt.Errorf("keep_deleted: %w", err)
+		}
+		if kd != 0 && kd < time.Hour {
+			return nil, fmt.Errorf("keep_deleted %q is below the one-hour safety floor", c.KeepDeleted)
+		}
+		if kd > 0 {
+			c.KeepDel = kd
+		}
 	}
 	return &c, nil
 }

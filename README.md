@@ -88,6 +88,27 @@ stays put until you say otherwise.
 
 Durations read the way you think: `45m`, `12h`, `7d`, `2w`, even `1w2d`.
 
+## True junk
+
+Some files aren't clutter, they're garbage — and shelf can take those out
+for you. Mark a rule with `delete: true` and matching files go to shelf's
+private trash, where they wait:
+
+```yaml
+keep_deleted: 30d
+
+rules:
+  - name: True junk
+    match: ["*.tmp", "*.log"]
+    older_than: 90d
+    delete: true
+```
+
+While a file sits in trash, `shelf --undo` brings it right back. After
+`keep_deleted` (30 days by default) passes, the next run purges it for
+real. Delete rules *require* an `older_than`, so nothing young is ever
+touched, and previews never purge — only `--apply` and `--watch` do.
+
 ## Is it safe?
 
 This is the part we care about most:
@@ -98,6 +119,8 @@ This is the part we care about most:
 - watch mode waits about twenty seconds before judging a fresh file
 - destination on another disk? the move falls back to a verified copy+delete
   that preserves timestamps and still refuses to overwrite anything
+- "deleted" files rest in a private trash first — undoable for 30 days,
+  and previews never purge anything
 - and if anything ever feels wrong: `--undo`
 
 Works the same on Linux, macOS and Windows.
@@ -105,7 +128,7 @@ Works the same on Linux, macOS and Windows.
 ## Where it's going
 
 - [x] cross-device moves (copy+delete fallback when rename can't)
-- [ ] `--delete-after` for true junk — journaled and undoable like everything else
+- [x] true junk: `delete` rules — trashed, journaled, undoable, auto-purged
 - [ ] shell completions
 - [ ] Homebrew / Scoop / AUR packages
 

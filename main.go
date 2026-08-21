@@ -242,7 +242,7 @@ func previewOrApply(root string, cfg *config.Config, source string, jnl *shelf.J
 	fmt.Printf("%s shelf %s·%s %s%s%s  %s%s%s\n\n",
 		ui.Bold, ui.Reset, ui.Reset, ui.Dim, ui.Shorten(root), ui.Reset, ui.Dim, source, ui.Reset)
 
-	moved, movedBytes := shelf.Apply(os.Stdout, moves, jnl, !apply)
+	moved, movedBytes := shelf.Apply(os.Stdout, moves, jnl, !apply, cfg.KeepDel)
 
 	if !apply {
 		if moved == 0 {
@@ -252,6 +252,11 @@ func previewOrApply(root string, cfg *config.Config, source string, jnl *shelf.J
 		fmt.Printf("\n  %d file%s · %s — %spreview only, nothing moved%s\n",
 			moved, plural(moved), ui.HumanBytes(movedBytes), ui.Bold, ui.Reset)
 		fmt.Printf("  %shappy? run again with --apply%s\n", ui.Dim, ui.Reset)
+		return 0
+	}
+
+	if len(moves) == 0 {
+		fmt.Printf("  %snothing to shelve — everything is already home.%s\n", ui.Green, ui.Reset)
 		return 0
 	}
 

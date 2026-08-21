@@ -12,11 +12,12 @@ import (
 )
 
 type Move struct {
-	From string
-	To   string
-	Rule string
-	Size int64
-	Age  time.Duration
+	From   string
+	To     string
+	Rule   string
+	Size   int64
+	Age    time.Duration
+	Delete bool
 }
 
 var transientExts = []string{
@@ -74,16 +75,23 @@ func Plan(root string, cfg *config.Config, settle time.Duration, now time.Time) 
 		if settle > 0 && age < settle {
 			continue
 		}
-		if rule.Dest == rootClean {
+		if rule.Dest == rootClean && !rule.Delete {
 			continue
 		}
-		dest := uniqueDest(rule.Dest, name, planned)
+		destDir := rule.Dest
+		base := name
+		if rule.Delete {
+			destDir = TrashDir()
+			base = fmt.Sprintf("%d-%s", now.UnixNano(), name)
+		}
+		dest := uniqueDest(destDir, base, planned)
 		moves = append(moves, Move{
-			From: filepath.Join(rootClean, name),
-			To:   dest,
-			Rule: rule.Name,
-			Size: info.Size(),
-			Age:  age,
+			From:   filepath.Join(rootClean, name),
+			To:     dest,
+			Rule:   rule.Name,
+			Size:   info.Size(),
+			Age:    age,
+			Delete: rule.Delete,
 		})
 	}
 

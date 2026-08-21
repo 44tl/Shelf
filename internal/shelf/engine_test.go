@@ -121,7 +121,7 @@ func TestApplyThenUndoRestoresEverything(t *testing.T) {
 	}
 	var out bytes.Buffer
 	jnl.StartRun()
-	moved, bytes := Apply(&out, moves, jnl, false)
+	moved, bytes := Apply(&out, moves, jnl, false, 30*24*time.Hour)
 
 	if moved != 2 || bytes != 33 {
 		t.Fatalf("apply reported %d files / %d bytes, want 2 / 33", moved, bytes)
@@ -201,7 +201,7 @@ func TestApplyNeverOverwritesFilesThatAppearAfterPlanning(t *testing.T) {
 	}
 	var out bytes.Buffer
 	jnl.StartRun()
-	moved, _ := Apply(&out, moves, jnl, false)
+	moved, _ := Apply(&out, moves, jnl, false, 30*24*time.Hour)
 
 	if moved != 1 {
 		t.Fatalf("moved = %d, want 1 (out: %s)", moved, out.String())
@@ -242,7 +242,7 @@ func TestApplySkipsSourcesSwappedForSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	moved, _ := Apply(&out, moves, jnl, false)
+	moved, _ := Apply(&out, moves, jnl, false, 30*24*time.Hour)
 
 	if moved != 0 {
 		t.Fatalf("symlink source was moved (%d files), want 0", moved)
@@ -267,7 +267,7 @@ func TestApplyUndoRoundTripWithConflicts(t *testing.T) {
 	jnl, _ := OpenJournal(filepath.Join(t.TempDir(), "journal.jsonl"))
 	var out bytes.Buffer
 	jnl.StartRun()
-	Apply(&out, moves, jnl, false)
+	Apply(&out, moves, jnl, false, 30*24*time.Hour)
 
 	n, err := jnl.Undo(&out)
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -28,19 +27,7 @@ type entry struct {
 }
 
 func DefaultJournalPath() string {
-	if runtime.GOOS == "windows" {
-		if base, err := os.UserConfigDir(); err == nil {
-			return filepath.Join(base, "shelf", "journal.jsonl")
-		}
-	}
-	if s := os.Getenv("XDG_STATE_HOME"); s != "" {
-		return filepath.Join(s, "shelf", "journal.jsonl")
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "shelf-journal.jsonl"
-	}
-	return filepath.Join(home, ".local", "state", "shelf", "journal.jsonl")
+	return filepath.Join(StateDir(), "journal.jsonl")
 }
 
 func OpenJournal(path string) (*Journal, error) {
