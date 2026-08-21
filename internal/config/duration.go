@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -28,18 +29,24 @@ func ParseDuration(s string) (time.Duration, error) {
 			if err != nil {
 				return 0, fmt.Errorf("shelf: bad duration %q: %v", s, err)
 			}
+			var unit time.Duration
 			switch r {
 			case 's':
-				total += time.Duration(n * float64(time.Second))
+				unit = time.Second
 			case 'm':
-				total += time.Duration(n * float64(time.Minute))
+				unit = time.Minute
 			case 'h':
-				total += time.Duration(n * float64(time.Hour))
+				unit = time.Hour
 			case 'd':
-				total += time.Duration(n * 24 * float64(time.Hour))
+				unit = 24 * time.Hour
 			case 'w':
-				total += time.Duration(n * 7 * 24 * float64(time.Hour))
+				unit = 7 * 24 * time.Hour
 			}
+			ns := n * float64(unit)
+			if !(ns >= 0) || ns > math.MaxInt64 {
+				return 0, fmt.Errorf("shelf: duration %q is out of range", s)
+			}
+			total += time.Duration(ns)
 			numStart = -1
 		default:
 			return 0, fmt.Errorf("shelf: unexpected character %q in duration %q", string(r), s)

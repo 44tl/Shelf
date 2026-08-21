@@ -107,35 +107,42 @@ func copyDelete(from, to string) error {
 	if err != nil {
 		return err
 	}
-	defer src.Close()
 
 	fi, err := src.Stat()
 	if err != nil {
+		src.Close()
 		return err
 	}
 	if !fi.Mode().IsRegular() {
+		src.Close()
 		return errors.New("shelf: source changed mid-move")
 	}
 
 	dst, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, fi.Mode().Perm())
 	if err != nil {
+		src.Close()
 		return err
 	}
 
 	if _, err = io.Copy(dst, src); err != nil {
+		src.Close()
 		dst.Close()
 		os.Remove(to)
 		return err
 	}
 	if err = dst.Sync(); err != nil {
+		src.Close()
 		dst.Close()
 		os.Remove(to)
 		return err
 	}
 	if err = dst.Close(); err != nil {
+		src.Close()
 		os.Remove(to)
 		return err
 	}
+
+	src.Close()
 
 	os.Chmod(to, fi.Mode().Perm())
 	os.Chtimes(to, fi.ModTime(), fi.ModTime())
