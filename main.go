@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/44tl/Shelf/internal/completion"
 	"github.com/44tl/Shelf/internal/config"
 	"github.com/44tl/Shelf/internal/shelf"
 	"github.com/44tl/Shelf/internal/ui"
@@ -25,6 +26,7 @@ Usage:
 
 Flags:
   --config path           use a specific rules file
+  --completion shell      print a completion script: bash, zsh, fish, powershell
   --version               print the version
 
 Preview is the default: without --apply, nothing is ever touched.
@@ -46,12 +48,13 @@ func run() int {
 	args := reorderArgs(os.Args[1:])
 
 	var (
-		apply   bool
-		watch   bool
-		undo    bool
-		initCfg bool
-		showVer bool
-		cfgPath string
+		apply     bool
+		watch     bool
+		undo      bool
+		initCfg   bool
+		showVer   bool
+		cfgPath   string
+		complShel string
 	)
 
 	fsLike := map[string]*bool{
@@ -80,6 +83,14 @@ func run() int {
 			cfgPath = args[i]
 		case strings.HasPrefix(a, "--config="):
 			cfgPath = strings.TrimPrefix(a, "--config=")
+		case a == "--completion":
+			if i+1 >= len(args) {
+				return fail("--completion needs a shell: " + strings.Join(completion.Shells(), ", "))
+			}
+			i++
+			complShel = args[i]
+		case strings.HasPrefix(a, "--completion="):
+			complShel = strings.TrimPrefix(a, "--completion=")
 		default:
 			if p, ok := fsLike[a]; ok {
 				*p = true
@@ -94,6 +105,15 @@ func run() int {
 
 	if showVer {
 		fmt.Printf("shelf %s\n", version)
+		return 0
+	}
+
+	if complShel != "" {
+		script, err := completion.Script(complShel)
+		if err != nil {
+			return fail(err.Error())
+		}
+		fmt.Print(script)
 		return 0
 	}
 
@@ -139,7 +159,7 @@ func reorderArgs(args []string) []string {
 	var flags, rest []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
-		if a == "--config" || a == "-c" {
+		if a == "--config" || a == "-c" || a == "--completion" {
 			flags = append(flags, a)
 			if i+1 < len(args) {
 				i++

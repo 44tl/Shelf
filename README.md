@@ -88,6 +88,27 @@ stays put until you say otherwise.
 
 Durations read the way you think: `45m`, `12h`, `7d`, `2w`, even `1w2d`.
 
+## Tab completion
+
+shelf can complete its own flags and folder paths:
+
+```sh
+# bash
+mkdir -p ~/.local/share/bash-completion/completions
+shelf --completion bash > ~/.local/share/bash-completion/completions/shelf
+
+# zsh (before compinit in .zshrc)
+mkdir -p ~/.zfunc && fpath=(~/.zfunc $fpath)
+shelf --completion zsh > ~/.zfunc/_shelf
+
+# fish
+mkdir -p ~/.config/fish/completions
+shelf --completion fish > ~/.config/fish/completions/shelf.fish
+
+# powershell — add to your $PROFILE
+shelf --completion powershell >> $PROFILE
+```
+
 ## True junk
 
 Some files aren't clutter, they're garbage — and shelf can take those out
@@ -129,7 +150,7 @@ Works the same on Linux, macOS and Windows.
 
 - [x] cross-device moves (copy+delete fallback when rename can't)
 - [x] true junk: `delete` rules — trashed, journaled, undoable, auto-purged
-- [ ] shell completions
+- [x] shell completions for bash, zsh, fish and PowerShell (`--completion`)
 - [ ] Homebrew / Scoop / AUR packages
 
 Built by hand, for humans. If shelf saved you an hour of filing, consider
