@@ -83,20 +83,23 @@ func (j *Journal) Undo(out io.Writer) (int, error) {
 	}
 
 	restored := 0
+	var kept []entry
 	for i := len(group) - 1; i >= 0; i-- {
 		e := group[i]
 		if _, err := os.Lstat(e.To); err != nil {
-			fmt.Fprintf(out, "%s  ? %s — destination vanished, skipping%s\n", ui.Yellow, ui.Trunc(filepath.Base(e.To), 60), ui.Reset)
+			fmt.Fprintf(out, "%s  ? %s — destination vanished, giving up on it%s\n", ui.Yellow, ui.Trunc(filepath.Base(e.To), 60), ui.Reset)
 			continue
 		}
 		if _, err := os.Lstat(e.From); err == nil {
-			fmt.Fprintf(out, "%s  ! %s — source already occupied, skipping%s\n", ui.Yellow, ui.Trunc(filepath.Base(e.From), 60), ui.Reset)
+			fmt.Fprintf(out, "%s  ! %s — source already occupied, kept for a later undo%s\n", ui.Yellow, ui.Trunc(filepath.Base(e.From), 60), ui.Reset)
+			kept = append(kept, e)
 			continue
 		}
 		os.MkdirAll(filepath.Dir(e.From), 0o755)
 		if err := os.Rename(e.To, e.From); err != nil {
 			if cerr := copyDelete(e.To, e.From); cerr != nil {
-				fmt.Fprintf(out, "%s  ✗ %s (%v)%s\n", ui.Red, ui.Trunc(filepath.Base(e.To), 60), cerr, ui.Reset)
+				fmt.Fprintf(out, "%s  ✗ %s (%v) — kept for a later undo%s\n", ui.Red, ui.Trunc(filepath.Base(e.To), 60), cerr, ui.Reset)
+				kept = append(kept, e)
 				continue
 			}
 		}
@@ -104,6 +107,9 @@ func (j *Journal) Undo(out io.Writer) (int, error) {
 		fmt.Fprintf(out, "  %s←%s %s\n", ui.Cyan, ui.Reset, ui.Shorten(e.From))
 	}
 
+	if len(kept) > 0 {
+		rest = append(rest, kept...)
+	}
 	if err := rewrite(j.path, rest); err != nil {
 		return restored, err
 	}

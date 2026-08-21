@@ -40,7 +40,12 @@ func Watch(out io.Writer, root string, cfg *config.Config, jnl *Journal) error {
 		if timer != nil {
 			timer.Stop()
 		}
-		timer = time.AfterFunc(debounceDelay, func() { fire <- struct{}{} })
+		timer = time.AfterFunc(debounceDelay, func() {
+			select {
+			case fire <- struct{}{}:
+			default:
+			}
+		})
 	}
 
 	fmt.Fprintf(out, "%sshelf%s is watching %s — %sctrl-c to stop%s\n",

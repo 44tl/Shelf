@@ -64,6 +64,9 @@ overwritten — collisions become `file (2).ext` instead.
 go install github.com/44tl/Shelf@latest
 ```
 
+Living dangerously on the bleeding edge? `go install github.com/44tl/Shelf@main`
+works even before the first release is tagged.
+
 Prebuilt binaries for Linux, macOS and Windows are on the
 [Releases](https://github.com/44tl/Shelf/releases) page.
 

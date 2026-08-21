@@ -1,10 +1,12 @@
 package shelf
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -103,6 +105,76 @@ func dirWriteBitBlocksUnlink(t *testing.T, dir string) bool {
 	err := os.Remove(probe)
 	os.Remove(probe)
 	return err != nil
+}
+
+func TestUniqueDestTerminatesWhenStatsFail(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission probe differs on windows")
+	}
+	base := t.TempDir()
+	locker := filepath.Join(base, "locked")
+	os.MkdirAll(filepath.Join(locker, "sub"), 0o755)
+
+	os.Chmod(locker, 0o000)
+	t.Cleanup(func() { os.Chmod(locker, 0o755) })
+
+	planned := map[string]bool{}
+	done := make(chan string, 1)
+	go func() { done <- uniqueDest(filepath.Join(locker, "sub"), "f.txt", planned) }()
+
+	select {
+	case got := <-done:
+		if got == "" {
+			t.Fatal("uniqueDest returned an empty path")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("uniqueDest did not terminate when Lstat keeps failing")
+	}
+}
+
+func TestUndoKeepsFailedEntriesForRetry(t *testing.T) {
+	root := t.TempDir()
+	dest := t.TempDir()
+	jp := filepath.Join(t.TempDir(), "journal.jsonl")
+
+	jnl, err := OpenJournal(jp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jnl.StartRun()
+
+	from := filepath.Join(root, "keep.txt")
+	to := filepath.Join(dest, "keep.txt")
+	os.WriteFile(to, []byte("x"), 0o644)
+	if err := jnl.Append(Move{From: from, To: to}); err != nil {
+		t.Fatal(err)
+	}
+
+	badFrom := filepath.Join(root, "selfdir", "sub", "blocked.txt")
+	badTo := filepath.Join(root, "selfdir")
+	os.MkdirAll(filepath.Join(badTo, "inner"), 0o755)
+	if err := jnl.Append(Move{From: badFrom, To: badTo}); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	n, err := jnl.Undo(&out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("restored %d files, want 1 (out: %s)", n, out.String())
+	}
+	if _, err := os.Lstat(from); err != nil {
+		t.Errorf("healthy file was not restored: %v", err)
+	}
+	data, err := os.ReadFile(jp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "blocked.txt") {
+		t.Fatal("failed entry was dropped from the journal; it can never be retried")
+	}
 }
 
 func TestMoveToPrefersHardlinksAndFallsBackCleanly(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool) (moved int, bytes int64) {
 	nameW, destW := layoutWidths(moves)
 	taken := map[string]bool{}
+	journalWarned := false
 
 	for _, m := range moves {
 		if !isRegularFile(m.From) {
@@ -52,7 +53,11 @@ func Apply(out io.Writer, moves []Move, jnl *Journal, dry bool) (moved int, byte
 			}
 		}
 
-		jnl.Append(m)
+		if err := jnl.Append(m); err != nil && !journalWarned {
+			journalWarned = true
+			fmt.Fprintf(out, "  %s! undo journal unavailable (%v) — moves continue without an undo trail%s\n",
+				ui.Yellow, err, ui.Reset)
+		}
 		ui.MoveLine(out,
 			filepath.Base(m.From),
 			ui.Shorten(filepath.Dir(m.To)),

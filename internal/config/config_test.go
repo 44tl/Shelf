@@ -57,6 +57,12 @@ rules:
   - name: X
     to: ~/somewhere
 `,
+		"bad pattern": `
+rules:
+  - name: X
+    match: ["[unclosed"]
+    to: ~/somewhere
+`,
 		"bad duration": `
 rules:
   - name: X

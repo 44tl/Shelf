@@ -94,7 +94,7 @@ func Plan(root string, cfg *config.Config, settle time.Duration, now time.Time) 
 func uniqueDest(dir, base string, planned map[string]bool) string {
 	ext := filepath.Ext(base)
 	stem := base[:len(base)-len(ext)]
-	for i := 1; ; i++ {
+	for i := 1; i <= 999; i++ {
 		cand := base
 		if i > 1 {
 			cand = fmt.Sprintf("%s (%d)%s", stem, i, ext)
@@ -106,4 +106,5 @@ func uniqueDest(dir, base string, planned map[string]bool) string {
 			return full
 		}
 	}
+	return filepath.Join(dir, fmt.Sprintf("%s.%d%s", stem, time.Now().UnixNano(), ext))
 }

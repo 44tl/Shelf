@@ -20,6 +20,7 @@ type Rule struct {
 
 	Older time.Duration
 	Dest  string
+	Pats  []string
 }
 
 type Config struct {
@@ -119,6 +120,14 @@ func ParseIn(baseDir string, b []byte) (*Config, error) {
 		if len(r.Match) == 0 {
 			return nil, fmt.Errorf("rule %q has no \"match\" patterns", r.Name)
 		}
+		r.Pats = make([]string, len(r.Match))
+		for j, pat := range r.Match {
+			lowered := strings.ToLower(pat)
+			if _, err := filepath.Match(lowered, ""); err != nil {
+				return nil, fmt.Errorf("rule %q: bad pattern %q: %w", r.Name, pat, err)
+			}
+			r.Pats[j] = lowered
+		}
 		d, err := ParseDuration(r.OlderThan)
 		if err != nil {
 			return nil, fmt.Errorf("rule %q: %w", r.Name, err)
@@ -150,8 +159,8 @@ func Match(c *Config, name string) (*Rule, error) {
 	lower := strings.ToLower(name)
 	for i := range c.Rules {
 		r := &c.Rules[i]
-		for _, pat := range r.Match {
-			ok, err := filepath.Match(strings.ToLower(pat), lower)
+		for _, pat := range r.Pats {
+			ok, err := filepath.Match(pat, lower)
 			if err != nil {
 				return nil, fmt.Errorf("rule %q: bad pattern %q: %w", r.Name, pat, err)
 			}
